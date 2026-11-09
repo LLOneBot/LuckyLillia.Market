@@ -1,19 +1,16 @@
 name: 注册插件
-description: 提交 npm 包名和图标声明，由自动化读取插件信息并生成登记 PR。
+description: 提交 npm 包名、图标和截图声明，由自动化读取插件信息并生成登记 PR。
 title: "登记插件："
 body:
   - type: markdown
     attributes:
       value: |
-        请先将插件公开发布到 npm。检查会读取 `latest` 版本中的插件名、简介、作者和 GitHub 仓库地址。
-        包内需要提供 `llbot`、`author` 和指向公开 GitHub 仓库的 `repository`。
-        在 `package.json.llbot.icon` 声明图标，并在下方 icon 栏填写相同的相对路径或 HTTP(S) 地址。截图在 `package.json.llbot.screenshots` 中填写包内相对路径，例如 `assets/preview.png`，或 `{ "src": "assets/preview.png", "caption": "预览说明" }`。市场会将图片相对路径原样保存到 `plugins.json`。
-        作者、插件名、简介、GitHub 仓库地址和截图由自动化读取，无需在 Issue 中重复填写；提交者也可以是插件推荐者。
+        请先将插件公开发布到 npm。
   - type: input
     id: package
     attributes:
       label: npm 包名
-      description: 只填写完整包名，不附加版本号、链接或 npm install 命令。
+      description: 只填写完整包名，不附加版本号。
       placeholder: luckylillia-plugin-example 或 @example/luckylillia-plugin-example
     validations:
       required: true
@@ -21,7 +18,17 @@ body:
     id: icon
     attributes:
       label: icon
-      description: 填写与 package.json.llbot.icon 相同的包内图片相对路径或 HTTP(S) 地址；留空时自动读取发布包的声明。
+      description: 填写包内图片相对路径。
       placeholder: assets/icon.png
+    validations:
+      required: false
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: screenshots
+      description: 每行填写一个包内图片相对路径，可填写多张截图。路径和顺序须与已发布版本的 package.json.llbot.screenshots 一致（对象项填写 src）；留空时自动读取。
+      placeholder: |
+        assets/preview.png
+        assets/settings.png
     validations:
       required: false

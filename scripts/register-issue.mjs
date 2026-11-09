@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
-import { isImageSource, isPackageName, preserveImageBlanks, resolvePlugin } from './catalog.mjs';
+import { isImagePath, isImageSource, isPackageName, preserveImageBlanks, resolvePlugin } from './catalog.mjs';
 import { reviewPackage } from './review.mjs';
 import { registrationBody } from './pr-description.mjs';
 import { GitHub, literal, reportText, same, sortPlugins, saveReport } from './github.mjs';
@@ -23,10 +23,23 @@ export function parseRegistrationIcon(body) {
   return icon;
 }
 
-export async function prepareRegistration(name, catalog, { icon, resolve = resolvePlugin, review = reviewPackage } = {}) {
+export function parseRegistrationScreenshots(body) {
+  const sections = [...String(body ?? '').matchAll(/^### screenshots\s*\r?\n([\s\S]*?)(?=^### |$(?![\s\S]))/gm)];
+  if (sections.length > 1) throw new Error('请只填写一个 screenshots 栏，每行填写一张截图的路径。');
+  if (!sections.length) return undefined;
+  const value = sections[0][1].trim();
+  if (!value || value === '_No response_') return undefined;
+  const screenshots = value.split(/\r?\n/).map(line => line.trim().replace(/^`([^`]+)`$/, '$1')).filter(Boolean);
+  if (screenshots.some(src => !isImagePath(src))) throw new Error('screenshots 每行必须是一个包内图片相对路径，例如 assets/preview.png；不要填写 URL、绝对路径或上传图片。');
+  return screenshots;
+}
+
+export async function prepareRegistration(name, catalog, { icon, screenshots, resolve = resolvePlugin, review = reviewPackage } = {}) {
   if (catalog.plugins.some(plugin => plugin.name === name)) return { duplicate: true };
   const resolved = await resolve(name);
   if (icon !== undefined && icon !== resolved.plugin.icon) throw new Error('Issue 中的 icon 与所检查 npm 版本的 package.json.llbot.icon 不一致，请填写该版本声明的相同图片路径或地址。');
+  const publishedScreenshots = (resolved.plugin.screenshots ?? []).map(item => typeof item === 'string' ? item : item.src);
+  if (screenshots !== undefined && !same(screenshots, publishedScreenshots)) throw new Error('Issue 中的 screenshots 与所检查 npm 版本的 package.json.llbot.screenshots 不一致，请按相同顺序每行填写一个图片路径（对象项填写 src），或留空自动读取。');
   const assessment = await review(resolved.manifest);
   if (!assessment.approved) return { ...resolved, assessment, accepted: false };
   return {
@@ -42,9 +55,10 @@ export async function registerIssue({ github = new GitHub(), issue, resolve, rev
   try {
     const name = parseRegistration(issue.body);
     const icon = parseRegistrationIcon(issue.body);
+    const screenshots = parseRegistrationScreenshots(issue.body);
     const base = await github.defaultBranch();
     const catalog = await github.snapshot(base);
-    const result = await prepareRegistration(name, catalog, { icon, resolve, review });
+    const result = await prepareRegistration(name, catalog, { icon, screenshots, resolve, review });
     await saveReport(`registration-${issue.number}`, { name, version: result.version, assessment: result.assessment, duplicate: result.duplicate });
     if (result.duplicate) {
       await github.comment(issue.number, marker, `包 <code>${literal(name)}</code> 已登记，版本由每小时检查任务维护。`);
