@@ -18,7 +18,7 @@ body:
     id: icon
     attributes:
       label: icon
-      description: 填写包内图片相对路径。
+      description: 填写包内图片相对路径，可为空。
       placeholder: assets/icon.png
     validations:
       required: false
@@ -26,7 +26,7 @@ body:
     id: screenshots
     attributes:
       label: screenshots
-      description: 每行填写一个包内图片相对路径，可填写多张截图。路径和顺序须与已发布版本的 package.json.llbot.screenshots 一致（对象项填写 src）；留空时自动读取。
+      description: 每行填写一个包内图片相对路径，可填写多张截图，可为空。
       placeholder: |
         assets/preview.png
         assets/settings.png
