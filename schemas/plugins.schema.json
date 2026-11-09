@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/LLOneBot/LuckyLillia.Market/schemas/plugins.schema.json",
+  "title": "LuckyLillia plugin catalogue",
+  "description": "Public npm package metadata. Every name must have one exact version in versions.json.",
+  "type": "array",
+  "$defs": {
+    "imagePath": {
+      "description": "Image path relative to the npm package root, stored verbatim. Parent directory segments are not allowed.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^(?!\\s)(?!/)(?![\\s\\S]*(?:^|/)\\.\\.(?:/|$))[^:\\u0000-\\u001f\\u007f\\\\]+\\.(?:[Pp][Nn][Gg]|[Jj][Pp][Ee]?[Gg]|[Gg][Ii][Ff]|[Ww][Ee][Bb][Pp]|[Ss][Vv][Gg])$(?![\\s\\S])"
+    },
+    "imageUrl": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "format": "uri",
+      "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://[^\\s\\u0000-\\u001f\\u007f\\\\/@?#]+(?:[/?#][^\\s\\u0000-\\u001f\\u007f\\\\]*)?$(?![\\s\\S])"
+    },
+    "imageSource": {
+      "anyOf": [{ "$ref": "#/$defs/imagePath" }, { "$ref": "#/$defs/imageUrl" }]
+    },
+    "screenshot": {
+      "anyOf": [
+        { "$ref": "#/$defs/imageSource" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["src"],
+          "properties": {
+            "src": { "$ref": "#/$defs/imageSource" },
+            "caption": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^(?!\\s)(?!.*\\s$)[^\\u0000-\\u001f\\u007f]+$"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "name",
+      "title",
+      "description",
+      "author",
+      "repository"
+    ],
+    "properties": {
+      "name": {
+        "type": "string",
+        "maxLength": 214,
+        "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$(?![\\s\\S])",
+        "not": {
+          "enum": [
+            "node_modules",
+            "favicon.ico"
+          ]
+        }
+      },
+      "title": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!\\s)(?!.*\\s$)[^\\u0000-\\u001f\\u007f]+$",
+        "maxLength": 200
+      },
+      "description": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!\\s)(?!.*\\s$)[^\\u0000-\\u001f\\u007f]+$",
+        "maxLength": 2000
+      },
+      "author": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!\\s)(?!.*\\s$)[^\\u0000-\\u001f\\u007f]+$",
+            "maxLength": 200
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri",
+            "pattern": "^https?://[^\\s/@]+(?:[/?#][^\\s]*)?$(?![\\s\\S])"
+          }
+        }
+      },
+      "icon": {
+        "description": "Optional image path or HTTP(S) URL from llbot.icon; omit or use an empty string to show the default icon.",
+        "anyOf": [{ "const": "" }, { "$ref": "#/$defs/imageSource" }]
+      },
+      "screenshots": {
+        "description": "Optional preview images from llbot.screenshots; preserve package-relative paths or HTTP(S) URLs, including { src, caption } objects. Omit or use an empty array when there are none.",
+        "type": "array",
+        "items": { "$ref": "#/$defs/screenshot" }
+      },
+      "repository": {
+        "type": "string",
+        "pattern": "^https://github\\.com/[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?/[A-Za-z0-9_.-]{1,100}$(?![\\s\\S])",
+        "not": {
+          "pattern": "/(?:\\.{1,2})$|\\.git$"
+        }
+      }
+    }
+  }
+}

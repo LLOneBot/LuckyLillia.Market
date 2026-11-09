@@ -1,0 +1,28 @@
+{
+  "name": "@luckylillia/market",
+  "version": "0.1.0",
+  "description": "LuckyLillia 插件市场目录",
+  "type": "module",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LLOneBot/LuckyLillia.Market.git"
+  },
+  "engines": { "node": ">=24" },
+  "files": ["plugins.json", "versions.json", "schemas/", "README.md"],
+  "exports": {
+    "./plugins.json": "./plugins.json",
+    "./versions.json": "./versions.json",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" },
+  "scripts": {
+    "test": "node --test",
+    "validate": "node scripts/validate.mjs",
+    "validate:remote": "node scripts/validate.mjs --remote",
+    "register": "node scripts/register-issue.mjs",
+    "scan:versions": "node scripts/scan-versions.mjs",
+    "prepare:release": "node scripts/prepare-release.mjs",
+    "prepublishOnly": "npm run validate"
+  }
+}

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: LuckyLillia.Bot 使用问题与反馈
+    url: https://github.com/LLOneBot/LuckyLillia.Bot/issues
+    about: Bot 的使用问题请提交到主仓库；本仓库用于插件登记。
