@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/LLOneBot/LuckyLillia.Market/schemas/versions.schema.json",
+  "$id": "https://github.com/LuckyLilliaDev/LuckyLillia.Market/schemas/versions.schema.json",
   "title": "LuckyLillia approved plugin versions",
   "description": "Automatically maintained package-name to exact SemVer map. Keys must exactly match plugins.json.",
   "type": "object",

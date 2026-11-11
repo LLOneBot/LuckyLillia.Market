@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/LLOneBot/LuckyLillia.Market/schemas/plugins.schema.json",
+  "$id": "https://github.com/LuckyLilliaDev/LuckyLillia.Market/schemas/plugins.schema.json",
   "title": "LuckyLillia plugin catalogue",
   "description": "Public npm package metadata. Every name must have one exact version in versions.json.",
   "type": "array",

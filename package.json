@@ -6,7 +6,7 @@
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LLOneBot/LuckyLillia.Market.git"
+    "url": "git+https://github.com/LuckyLilliaDev/LuckyLillia.Market.git"
   },
   "engines": { "node": ">=24" },
   "files": ["plugins.json", "versions.json", "schemas/", "README.md"],

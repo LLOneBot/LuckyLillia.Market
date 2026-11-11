@@ -28,7 +28,7 @@ jobs:
       - run: npm run validate
       - id: release
         run: npm run prepare:release
-      - if: steps.release.outputs.publish == 'true'
+      # Configure the matching GitHub Actions trusted publisher on npm first.
+      - name: Publish with npm trusted publishing
+        if: steps.release.outputs.publish == 'true'
         run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

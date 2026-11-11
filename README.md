@@ -35,6 +35,23 @@
 
 AI 审查还涵盖 QQ Bot 的违规消息、未经授权的好友和群操作、群管理及账号安全操作。红包、转账、支付、钱包及支付凭据操作至少按中危处理并暂缓登记或更新。
 
+## 市场包发布
+
+`publish.yml` 使用 npm Trusted Publishing（OIDC）发布 `@luckylillia/market`，无需配置 `NPM_TOKEN`。首次启用需要：
+
+1. 包必须已存在于 npm。若尚未发布，在本地使用拥有 `@luckylillia` 发布权限的账号登录并完成首次发布：
+
+   ```sh
+   npm login --registry=https://registry.npmjs.org
+   npm publish --access public --registry=https://registry.npmjs.org
+   ```
+
+2. 在 npm 包的 Settings → Trusted publishing 中添加 GitHub Actions：Organization or user 填 `LuckyLilliaDev`，Repository 填 `LuckyLillia.Market`，Workflow filename 填 `publish.yml`，Environment 留空，并允许 `npm publish`。
+
+3. 手动运行 GitHub Actions 的 `Publish market catalog`。此后目录合并和每小时检查会自动请求发布；内容未变化时跳过发布。
+
+可信发布配置的仓库及工作流名称必须准确匹配，`package.json` 的 `repository.url` 也必须指向当前仓库。缺少可信发布配置时，Action 会报 `ENEEDAUTH`。
+
 ## 插件开发
 
 见文档（待施工）
