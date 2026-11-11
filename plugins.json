@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "name": "@luckylillia/plugin-aiprovider",
+    "title": "AI 服务",
+    "description": "在这里配置 AI 服务的接口地址、API Key 和模型列表，由其他插件选择服务和模型。支持 DeepSeek 等 OpenAI 兼容接口",
+    "author": {
+      "name": "linyuchen"
+    },
+    "repository": "https://github.com/LuckyLilliaDev/lucky-lillia-plugin-aiprovider"
+  }
+]
