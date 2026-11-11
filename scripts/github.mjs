@@ -96,13 +96,7 @@ export class GitHub {
   }
 
   async comment(issue, marker, body) {
-    const comments = await this.list(`/issues/${issue}/comments`);
-    const existing = comments.find(comment => comment.user?.type === 'Bot' && comment.body?.startsWith(marker));
-    const fullBody = `${marker}\n${body}`;
-    if (existing?.body === fullBody) return existing;
-    return existing
-      ? this.request('PATCH', `/issues/comments/${existing.id}`, { body: fullBody })
-      : this.request('POST', `/issues/${issue}/comments`, { body: fullBody });
+    return this.request('POST', `/issues/${issue}/comments`, { body: `${marker}\n${body}` });
   }
 
   async reportIssue(key, title, body) {

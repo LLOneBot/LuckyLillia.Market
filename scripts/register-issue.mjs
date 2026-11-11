@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { isImagePath, isImageSource, isPackageName, preserveImageBlanks, resolvePlugin } from './catalog.mjs';
 import { reviewPackage } from './review.mjs';
-import { registrationBody } from './pr-description.mjs';
+import { registrationBody, runUrl } from './pr-description.mjs';
 import { GitHub, literal, reportText, same, sortPlugins, saveReport } from './github.mjs';
 
 export function parseRegistration(body) {
@@ -49,9 +49,11 @@ export async function prepareRegistration(name, catalog, { icon, screenshots, re
   };
 }
 
-export async function registerIssue({ github = new GitHub(), issue, resolve, review } = {}) {
+export async function registerIssue({ github = new GitHub(), issue, resolve, review, env = process.env, save = saveReport } = {}) {
   if (issue.pull_request || issue.state !== 'open' || !/^### npm 包名\s*$/m.test(issue.body ?? '')) return;
   const marker = '<!-- market-registration -->';
+  const url = runUrl(env);
+  const comment = body => github.comment(issue.number, marker, url ? `${body}\n\n[本次检查记录](${url})` : body);
   try {
     const name = parseRegistration(issue.body);
     const icon = parseRegistrationIcon(issue.body);
@@ -59,13 +61,13 @@ export async function registerIssue({ github = new GitHub(), issue, resolve, rev
     const base = await github.defaultBranch();
     const catalog = await github.snapshot(base);
     const result = await prepareRegistration(name, catalog, { icon, screenshots, resolve, review });
-    await saveReport(`registration-${issue.number}`, { name, version: result.version, assessment: result.assessment, duplicate: result.duplicate });
+    await save(`registration-${issue.number}`, { name, version: result.version, assessment: result.assessment, duplicate: result.duplicate });
     if (result.duplicate) {
-      await github.comment(issue.number, marker, `包 <code>${literal(name)}</code> 已登记，版本由每小时检查任务维护。`);
+      await comment(`包 <code>${literal(name)}</code> 已登记，版本由每小时检查任务维护。`);
       return;
     }
     if (!result.accepted) {
-      await github.comment(issue.number, marker, `登记暂缓，尚未写入目录。修复后请发布新版本并编辑此 Issue，或请维护者重新运行登记工作流。\n\n${reportText(result.assessment)}`);
+      await comment(`登记暂缓，尚未写入目录。修复发布包或恢复审查服务后，请编辑此 Issue 或重新运行登记工作流。\n\n${reportText(result.assessment)}`);
       return;
     }
     const branch = `market/register-issue-${issue.number}`;
@@ -79,17 +81,17 @@ export async function registerIssue({ github = new GitHub(), issue, resolve, rev
     }
     const [owner] = github.repository.split('/');
     const pulls = await github.list(`/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`);
-    const body = registrationBody(result, issue.number);
+    const body = registrationBody(result, issue.number, env);
     const pull = pulls[0]
       ? await github.request('PATCH', `/pulls/${pulls[0].number}`, { title: `登记插件：${name}`, body })
       : await github.request('POST', '/pulls', { title: `登记插件：${name}`, head: branch, base, body, maintainer_can_modify: true });
     // GITHUB_TOKEN-generated PRs do not trigger pull_request. Explicitly dispatch trusted validation.
     await github.dispatchValidation(pull.number);
-    await github.comment(issue.number, marker, `字段检查已通过，已创建登记 PR：${pull.html_url}。首次版本为 <code>${literal(result.version)}</code>，合并后发布到 npm 目录包。\n\n${reportText(result.assessment)}`);
+    await comment(`字段检查已通过，已创建登记 PR：${pull.html_url}。首次版本为 <code>${literal(result.version)}</code>，合并后发布到 npm 目录包。\n\n${reportText(result.assessment)}`);
     return { number: pull.number, sha };
   } catch (error) {
-    await saveReport(`registration-${issue.number}`, { error: error.message, retryable: Boolean(error.retryable) });
-    await github.comment(issue.number, marker, `登记未完成，请根据下列原因处理后编辑此 Issue，或由维护者重跑工作流。${error.retryable ? '本次是临时服务错误，不代表包或仓库无效。' : ''}\n\n<pre>${literal(error.message)}</pre>`);
+    await save(`registration-${issue.number}`, { error: error.message, retryable: Boolean(error.retryable) });
+    await comment(`登记未完成，请根据下列原因处理后编辑此 Issue，或由维护者重跑工作流。${error.retryable ? '本次是临时服务错误，不代表包或仓库无效。' : ''}\n\n<pre>${literal(error.message)}</pre>`);
     throw error;
   }
 }

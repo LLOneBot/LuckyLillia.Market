@@ -25,7 +25,7 @@ test('AI 审查缺少接口、模型或密钥时均不通过', async () => {
     const env = { ...aiEnv };
     delete env[key];
     const assessment = await reviewPackage(manifest, {
-      env, fetchImpl: async () => assert.fail('配置不完整时不应请求外部服务'),
+      env, logger: () => {}, fetchImpl: async () => assert.fail('配置不完整时不应请求外部服务'),
     });
     assert.equal(assessment.approved, false, key);
     assert.equal(assessment.status, 'error', key);
@@ -39,6 +39,7 @@ for (const legacyEnabled of [undefined, 'false']) {
     let downloads = 0;
     const review = checked => reviewPackage(checked, {
       env,
+      logger: () => {},
       fetchImpl: async url => {
         assert.equal(url, manifest.dist.tarball);
         downloads++;

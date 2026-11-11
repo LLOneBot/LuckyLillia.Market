@@ -7,9 +7,10 @@ function text(value, limit = 2000) {
   return literal(excerpt.replace(/[\\`*_{}[\]()#+.!|~-]/g, '\\$&')).replace(/\r\n|\r|\n/g, '<br>');
 }
 
-function runUrl(env) {
+export function runUrl(env) {
+  const attempt = /^[1-9][0-9]*$/.test(env.GITHUB_RUN_ATTEMPT ?? '') ? `/attempts/${env.GITHUB_RUN_ATTEMPT}` : '';
   return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(env.GITHUB_REPOSITORY ?? '') && /^[1-9]\d*$/.test(env.GITHUB_RUN_ID ?? '')
-    ? `https://github.com/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}` : null;
+    ? `https://github.com/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}${attempt}` : null;
 }
 
 const severity = { critical: '严重', high: '高', medium: '中', low: '低' };
