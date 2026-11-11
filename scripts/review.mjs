@@ -8,7 +8,9 @@ const MAX_FILE_BYTES = 8 * 1024 * 1024;
 const MAX_FILES = 3000;
 const DEFAULT_INPUT_BYTES = 512 * 1024;
 const MAX_INPUT_BYTES = 8 * 1024 * 1024;
-const MAX_OUTPUT_TOKENS = 4096;
+const DEFAULT_OUTPUT_TOKENS = 32768;
+const MAX_OUTPUT_TOKENS = 131072;
+const AI_TIMEOUT_MS = 300_000;
 const utf8 = new TextDecoder('utf-8', { fatal: true });
 const SEVERITIES = new Set(['low', 'medium', 'high', 'critical']);
 
@@ -34,7 +36,12 @@ function configFrom(env) {
   if (!Number.isSafeInteger(maxInput) || maxInput < 1 || maxInput > MAX_INPUT_BYTES) {
     failed(`MARKET_AI_MAX_INPUT_BYTES 必须是 1 到 ${MAX_INPUT_BYTES} 的整数。`);
   }
-  return { endpoint: `${base.href.replace(/\/$/, '')}/chat/completions`, model: env.MARKET_AI_MODEL.trim(), key: env.MARKET_AI_API_KEY, maxInput };
+  const maxOutput = env.MARKET_AI_MAX_OUTPUT_TOKENS === undefined || env.MARKET_AI_MAX_OUTPUT_TOKENS === ''
+    ? DEFAULT_OUTPUT_TOKENS : Number(env.MARKET_AI_MAX_OUTPUT_TOKENS);
+  if (!Number.isSafeInteger(maxOutput) || maxOutput < 1 || maxOutput > MAX_OUTPUT_TOKENS) {
+    failed(`MARKET_AI_MAX_OUTPUT_TOKENS 必须是 1 到 ${MAX_OUTPUT_TOKENS} 的整数。`);
+  }
+  return { endpoint: `${base.href.replace(/\/$/, '')}/chat/completions`, model: env.MARKET_AI_MODEL.trim(), key: env.MARKET_AI_API_KEY, maxInput, maxOutput };
 }
 
 async function boundedBody(response, maximum, description) {
@@ -352,7 +359,7 @@ export async function reviewPackage(manifest, options = {}) {
   };
   try {
     const config = configFrom(env);
-    diagnostics.config = { endpoint: config.endpoint, model: config.model, maxInputBytes: config.maxInput, maxOutputTokens: MAX_OUTPUT_TOKENS };
+    diagnostics.config = { endpoint: config.endpoint, model: config.model, maxInputBytes: config.maxInput, maxOutputTokens: config.maxOutput, timeoutMs: AI_TIMEOUT_MS };
     log('review_started', { config: diagnostics.config });
     const fetchImpl = options.fetchImpl ?? globalThis.fetch;
     diagnostics.phase = 'package_metadata';
@@ -389,12 +396,12 @@ export async function reviewPackage(manifest, options = {}) {
     coverage.inputBytes = Buffer.byteLength(content);
     log('sources_collected', { inspectedFiles: coverage.inspectedFiles.length, omittedFiles: coverage.omittedFiles.length, inputBytes: coverage.inputBytes, maxInputBytes: config.maxInput });
     if (coverage.inputBytes > config.maxInput) blocked(`完整源码输入为 ${coverage.inputBytes} 字节，超过配置的 ${config.maxInput} 字节；未截断审查。`);
-    const request = { model: config.model, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content }], max_tokens: MAX_OUTPUT_TOKENS };
+    const request = { model: config.model, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content }], max_tokens: config.maxOutput };
     diagnostics.phase = 'ai_request';
     const requestStarted = Date.now();
     log('ai_request_started', { ...diagnostics.config, inputBytes: coverage.inputBytes });
     try {
-      response = await fetchImpl(config.endpoint, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(120_000), headers: { 'content-type': 'application/json', authorization: `Bearer ${config.key}` }, body: JSON.stringify(request) });
+      response = await fetchImpl(config.endpoint, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(AI_TIMEOUT_MS), headers: { 'content-type': 'application/json', authorization: `Bearer ${config.key}` }, body: JSON.stringify(request) });
     } catch (error) {
       diagnostics.response = { elapsedMs: Date.now() - requestStarted, error: transportDetails(error) };
       failed('AI 审查服务请求失败或超时，保留原版本。');

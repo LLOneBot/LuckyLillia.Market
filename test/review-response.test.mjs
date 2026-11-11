@@ -73,11 +73,11 @@ const manifest = {
   },
 };
 
-async function reviewResponse(responseEnvelope, { status = 200, body, contentType = 'application/json', transportError } = {}) {
+async function reviewResponse(responseEnvelope, { status = 200, body, contentType = 'application/json', transportError, reviewEnv = {} } = {}) {
   const logs = [];
   let request;
   const result = await reviewPackage(manifest, {
-    env, logger: entry => logs.push(entry),
+    env: { ...env, ...reviewEnv }, logger: entry => logs.push(entry),
     fetchImpl: async (url, options) => {
       if (url === manifest.dist.tarball) return new Response(archive);
       assert.equal(url, 'https://ai.example.com/api/chat/completions');
@@ -97,7 +97,7 @@ test('截断时日志和报告保留响应状态、token 用量与长度，同�
     id: `completion-${env.MARKET_AI_API_KEY}`,
     usage: { prompt_tokens: 100, completion_tokens: 4096, total_tokens: 4196, completion_tokens_details: { reasoning_tokens: 4080 } },
   };
-  const { result, logs, request } = await reviewResponse(response);
+  const { result, logs, request } = await reviewResponse(response, { reviewEnv: { MARKET_AI_MAX_OUTPUT_TOKENS: '4096' } });
   assert.equal(result.approved, false);
   assert.match(result.summary, /finish_reason=length/);
   assert.equal(result.diagnostics.phase, 'ai_decision');
@@ -117,12 +117,27 @@ test('截断时日志和报告保留响应状态、token 用量与长度，同�
 });
 
 test('完整结果保留诊断信息并正常通过审查', async () => {
-  const { result, logs } = await reviewResponse(envelope({ tool_calls: [] }));
+  const { result, logs, request } = await reviewResponse(envelope({ tool_calls: [] }));
+  assert.equal(request.max_tokens, 32768);
   assert.equal(result.approved, true);
   assert.equal(result.coverage.complete, true);
   assert.equal(result.diagnostics.phase, 'complete');
   assert.equal(result.diagnostics.response.toolCallCount, 0);
   assert.equal(logs.at(-1).status, 'approved');
+});
+
+test('输出额度可以独立配置，并拒绝无效值', async () => {
+  const custom = await reviewResponse(envelope(), { reviewEnv: { MARKET_AI_MAX_OUTPUT_TOKENS: '65536' } });
+  assert.equal(custom.result.approved, true);
+  assert.equal(custom.request.max_tokens, 65536);
+  assert.equal(custom.result.diagnostics.config.maxOutputTokens, 65536);
+  for (const value of ['0', '-1', '1.5', 'abc', '131073']) {
+    const invalid = await reviewResponse(envelope(), { reviewEnv: { MARKET_AI_MAX_OUTPUT_TOKENS: value } });
+    assert.equal(invalid.result.approved, false, value);
+    assert.match(invalid.result.summary, /MARKET_AI_MAX_OUTPUT_TOKENS/);
+    assert.equal(invalid.result.diagnostics.phase, 'configuration');
+    assert.equal(invalid.request, undefined);
+  }
 });
 
 test('HTTP 错误和非 JSON 响应保留状态与请求 ID', async () => {

@@ -25,9 +25,11 @@
 | Variable | `MARKET_AI_BASE_URL` | HTTPS 接口基础地址，可带自定义路径 |
 | Variable | `MARKET_AI_MODEL` | 服务支持的模型 ID |
 | Variable（可选） | `MARKET_AI_MAX_INPUT_BYTES` | 审查输入的字节数上限，默认 `524288`，最大 `8388608` |
+| Variable（可选） | `MARKET_AI_MAX_OUTPUT_TOKENS` | 输出 token 上限，默认 `32768`，可设置 `1` 到 `131072`，须在模型支持范围内；推理 token 也计入此额度 |
 | Secret | `MARKET_AI_API_KEY` | AI 服务的 API Key |
 
 请求地址为基础地址去掉末尾斜杠后追加 `/chat/completions`，例如 `https://ai.example.com/api` 对应 `https://ai.example.com/api/chat/completions`。服务需支持 Chat Completions 和 JSON 输出模式。
+单次 AI 请求最多等待 5 分钟。若报告显示 `finishReason: length`，且推理 token 已用完输出额度、正文为空，可提高 `MARKET_AI_MAX_OUTPUT_TOKENS`。
 
 每次登记运行都会新增一条 Issue 评论，并附上该次 Actions 运行及重试记录的链接。Actions 日志中的 `[market/review]` 记录和报告中的 `diagnostics` 字段包含检查阶段、模型、输入与输出上限、HTTP 状态、请求 ID、耗时、结束原因、token 用量以及正文和推理内容的字节数，用于排查截断、拒答、接口格式和网络问题。
 

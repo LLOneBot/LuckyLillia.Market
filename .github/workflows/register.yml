@@ -38,6 +38,7 @@ jobs:
           MARKET_AI_BASE_URL: ${{ vars.MARKET_AI_BASE_URL }}
           MARKET_AI_MODEL: ${{ vars.MARKET_AI_MODEL }}
           MARKET_AI_MAX_INPUT_BYTES: ${{ vars.MARKET_AI_MAX_INPUT_BYTES }}
+          MARKET_AI_MAX_OUTPUT_TOKENS: ${{ vars.MARKET_AI_MAX_OUTPUT_TOKENS }}
           MARKET_AI_API_KEY: ${{ secrets.MARKET_AI_API_KEY }}
       - uses: actions/upload-artifact@v4
         if: always()
