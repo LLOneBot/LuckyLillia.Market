@@ -6,12 +6,12 @@ import { reviewPackage } from './review.mjs';
 import { GitHub, saveReport } from './github.mjs';
 
 export async function validateChanges(base, proposed, { resolve = resolvePlugin, review = reviewPackage } = {}) {
-  validateCatalog(proposed.plugins, proposed.versions);
+  validateCatalog(proposed.plugins);
   const reports = [];
   for (const plugin of proposed.plugins) {
     const previous = base.plugins.find(entry => entry.name === plugin.name);
-    const version = proposed.versions[plugin.name];
-    if (isDeepStrictEqual(previous, plugin) && base.versions[plugin.name] === version) continue;
+    const version = plugin.version;
+    if (isDeepStrictEqual(previous, plugin)) continue;
     const resolved = await resolve(plugin.name, { version });
     if (resolved.version !== version || !matchesPublishedPlugin(plugin, resolved.plugin)) throw new Error(`${plugin.name}@${version} 的目录字段与 npm 发布信息不一致。`);
     const assessment = await review(resolved.manifest);
@@ -38,10 +38,9 @@ async function main() {
   await status('pending', '正在检查 npm 元数据、精确版本并进行 AI 审查');
   try {
     const base = await github.snapshot(branch);
-    // Only parse two JSON blobs at the immutable head SHA. Never checkout or run PR code.
+    // Only parse the catalog JSON at the immutable head SHA. Never checkout or run PR code.
     const plugins = await github.file('plugins.json', sha);
-    const versions = await github.file('versions.json', sha);
-    const result = await validateChanges(base, { plugins, versions });
+    const result = await validateChanges(base, { plugins });
     await saveReport(`pr-${number}`, { sha, ...result });
     if (!result.approved) throw new Error('一个或多个插件版本未通过审查，详情见工作流报告');
     await status('success', '目录字段、版本及 AI 审查均通过');

@@ -45,7 +45,6 @@ export async function prepareRegistration(name, catalog, { icon, screenshots, re
   return {
     ...resolved, assessment, accepted: true,
     plugins: sortPlugins([...catalog.plugins, resolved.plugin]),
-    versions: { ...catalog.versions, [name]: resolved.version },
   };
 }
 
@@ -76,8 +75,8 @@ export async function registerIssue({ github = new GitHub(), issue, resolve, rev
     result.plugin = preserveImageBlanks(result.plugin, branchCatalog?.plugins.find(plugin => plugin.name === name));
     result.plugins = result.plugins.map(plugin => plugin.name === name ? result.plugin : plugin);
     let sha = branchCatalog?.sha;
-    if (!branchCatalog || !same(sortPlugins(branchCatalog.plugins), result.plugins) || !same(branchCatalog.versions, result.versions)) {
-      sha = await github.commitCatalog(branch, branchCatalog ?? catalog, result.plugins, result.versions, `Register ${name}`, existing?.object.sha ?? catalog.sha);
+    if (!branchCatalog || !same(sortPlugins(branchCatalog.plugins), result.plugins)) {
+      sha = await github.commitCatalog(branch, branchCatalog ?? catalog, result.plugins, `Register ${name}`, existing?.object.sha ?? catalog.sha);
     }
     const [owner] = github.repository.split('/');
     const pulls = await github.list(`/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`);

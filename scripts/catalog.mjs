@@ -152,7 +152,7 @@ export function metadataToPlugin(metadata) {
   const description = localized(metadata.llbot.description) || localized(metadata.description);
   if (!string(title, 200)) fail('请在 package.json.llbot.title 填写插件名称并发布新版本。', 'MISSING_TITLE');
   if (!string(description, 2000)) fail('请在 package.json.description 或 llbot.description 填写插件简介并发布新版本。', 'MISSING_DESCRIPTION');
-  const plugin = { name: metadata.name, title, description, author: parseAuthor(metadata.author), repository: normalizeRepository(metadata.repository) };
+  const plugin = { name: metadata.name, version: metadata.version, title, description, author: parseAuthor(metadata.author), repository: normalizeRepository(metadata.repository) };
   const icon = metadata.llbot.icon;
   const screenshots = Array.isArray(metadata.llbot.screenshots)
     ? metadata.llbot.screenshots.map(item => {
@@ -168,46 +168,39 @@ export function metadataToPlugin(metadata) {
   return plugin;
 }
 
-export function validateCatalog(plugins, versions) {
+export function validateCatalog(plugins) {
   if (!Array.isArray(plugins)) fail('plugins.json 必须是插件数组。', 'INVALID_CATALOG');
-  if (!object(versions)) fail('versions.json 必须是包名到版本号的对象。', 'INVALID_CATALOG');
   const names = new Set();
   for (const plugin of plugins) {
-    if (!object(plugin) || !keysOnly(plugin, ['name', 'title', 'description', 'author', 'repository', 'icon', 'screenshots'])) fail('插件条目包含无效字段。', 'INVALID_CATALOG');
+    if (!object(plugin) || !keysOnly(plugin, ['name', 'version', 'title', 'description', 'author', 'repository', 'icon', 'screenshots'])) fail('插件条目包含无效字段。', 'INVALID_CATALOG');
     if (!isPackageName(plugin.name)) fail('插件条目包含无效 npm 包名。', 'INVALID_PACKAGE_NAME');
     if (names.has(plugin.name)) fail(`插件重复登记：${plugin.name}。`, 'DUPLICATE_PACKAGE');
     names.add(plugin.name);
+    if (!isVersion(plugin.version)) fail(`插件 ${plugin.name} 缺少精确版本号，或版本号无效。`, 'INVALID_VERSION');
     if (!string(plugin.title, 200) || plugin.title !== plugin.title.trim() || !string(plugin.description, 2000) || plugin.description !== plugin.description.trim()) fail(`插件 ${plugin.name} 的名称或简介无效。`, 'INVALID_CATALOG');
     if (!object(plugin.author) || !keysOnly(plugin.author, ['name', 'url']) || !string(plugin.author.name, 200) || plugin.author.name !== plugin.author.name.trim()) fail(`插件 ${plugin.name} 的作者信息无效。`, 'INVALID_CATALOG');
     if (Object.hasOwn(plugin.author, 'url') && !authorUrl(plugin.author.url)) fail(`插件 ${plugin.name} 的作者链接必须是 HTTP(S) 地址。`, 'INVALID_CATALOG');
     if (typeof plugin.repository !== 'string' || normalizeRepository(plugin.repository) !== plugin.repository) fail(`插件 ${plugin.name} 的 repository 必须是规范 GitHub 地址。`, 'INVALID_CATALOG');
     if (Object.hasOwn(plugin, 'icon') && plugin.icon !== '' && !isImageSource(plugin.icon)) fail(`插件 ${plugin.name} 的 icon 必须是包内图片相对路径、HTTP(S) 地址或空字符串。`, 'INVALID_CATALOG');
     if (Object.hasOwn(plugin, 'screenshots') && (!Array.isArray(plugin.screenshots) || plugin.screenshots.some(item => !isScreenshot(item)))) fail(`插件 ${plugin.name} 的 screenshots 必须是包内图片相对路径、HTTP(S) 图片地址或 { src, caption } 对象的数组，可为空数组。`, 'INVALID_CATALOG');
-    if (!Object.hasOwn(versions, plugin.name) || !isVersion(versions[plugin.name])) fail(`versions.json 缺少 ${plugin.name} 的精确版本号，或版本号无效。`, 'INVALID_VERSION');
   }
-  if (Object.keys(versions).some(name => !names.has(name))) fail('versions.json 包含未登记的插件。', 'EXTRA_VERSION');
 }
 
 export async function readCatalog(root = process.cwd()) {
   let plugins;
-  let versions;
   try {
-    [plugins, versions] = await Promise.all(['plugins.json', 'versions.json'].map(async file => JSON.parse(await readFile(join(root, file), 'utf8'))));
+    plugins = JSON.parse(await readFile(join(root, 'plugins.json'), 'utf8'));
   } catch (cause) {
-    throw new MarketError('无法读取 plugins.json 或 versions.json，请检查文件是否存在且为有效 JSON。', { code: 'INVALID_CATALOG', cause });
+    throw new MarketError('无法读取 plugins.json，请检查文件是否存在且为有效 JSON。', { code: 'INVALID_CATALOG', cause });
   }
-  validateCatalog(plugins, versions);
-  return { plugins, versions };
+  validateCatalog(plugins);
+  return { plugins };
 }
 
-export async function writeCatalog(root, plugins, versions) {
-  validateCatalog(plugins, versions);
+export async function writeCatalog(root, plugins) {
+  validateCatalog(plugins);
   const sorted = [...plugins].sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
-  const pins = Object.fromEntries(sorted.map(plugin => [plugin.name, versions[plugin.name]]));
-  await Promise.all([
-    writeFile(join(root, 'plugins.json'), `${JSON.stringify(sorted, null, 2)}\n`, 'utf8'),
-    writeFile(join(root, 'versions.json'), `${JSON.stringify(pins, null, 2)}\n`, 'utf8'),
-  ]);
+  await writeFile(join(root, 'plugins.json'), `${JSON.stringify(sorted, null, 2)}\n`, 'utf8');
 }
 
 /** Bounded JSON transport. Request bodies and response bodies never enter diagnostic messages. */

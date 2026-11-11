@@ -6,8 +6,10 @@
 
 2. 在本仓库创建「注册插件」Issue，按照 Issue Template 填写 npm 包名等信息。
 
-3. 检查通过后，机器人创建包含 `plugins.json` 和 `versions.json` 变更的 PR，等待维护者合并。
+3. 检查通过后，机器人创建包含 `plugins.json` 变更的 PR，等待维护者合并。
 如果检查不通过，机器人会在 Issue 下面回复具体不通过问题。
+
+目录统一保存在 `plugins.json`。每个插件条目包含展示信息和 `version`；`version` 是通过审查的 npm 精确版本号，不能填写 `latest` 或版本范围。新版 Bot 只从条目中读取版本，不再支持旧双文件目录。
 
 
 ## 插件更新

@@ -10,14 +10,14 @@ export function canonical(value) {
   return value;
 }
 
-export function catalogHash(plugins, versions) {
+export function catalogHash(plugins) {
   return createHash('sha256').update(JSON.stringify(canonical({
-    plugins: [...plugins].sort((a, b) => a.name.localeCompare(b.name, 'en')), versions,
+    plugins: [...plugins].sort((a, b) => a.name.localeCompare(b.name, 'en')),
   }))).digest('hex');
 }
 
 export function releasePlan(pkg, catalog, latest) {
-  const hash = catalogHash(catalog.plugins, catalog.versions);
+  const hash = catalogHash(catalog.plugins);
   if (latest?.market?.catalogHash === hash) return { publish: false, version: latest.version, hash };
   if (!latest) return { publish: true, version: pkg.version, hash };
   const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(latest.version);
@@ -36,7 +36,7 @@ export async function prepareRelease({ root = process.cwd(), fetchImpl = globalT
   const plan = releasePlan(pkg, catalog, latest);
   if (plan.publish) {
     pkg.version = plan.version;
-    pkg.market = { schemaVersion: 1, catalogHash: plan.hash };
+    pkg.market = { schemaVersion: 2, catalogHash: plan.hash };
     await writeFile(pkgPath, pretty(pkg));
   }
   await output('publish', String(plan.publish));

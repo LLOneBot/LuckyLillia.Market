@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/LuckyLilliaDev/LuckyLillia.Market/schemas/plugins.schema.json",
   "title": "LuckyLillia plugin catalogue",
-  "description": "Public npm package metadata. Every name must have one exact version in versions.json.",
+  "description": "Public npm package metadata with one approved exact version in each plugin entry.",
   "type": "array",
   "$defs": {
     "imagePath": {
@@ -47,6 +47,7 @@
     "additionalProperties": false,
     "required": [
       "name",
+      "version",
       "title",
       "description",
       "author",
@@ -63,6 +64,12 @@
             "favicon.ico"
           ]
         }
+      },
+      "version": {
+        "description": "The exact npm version approved by the market review.",
+        "type": "string",
+        "maxLength": 256,
+        "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$(?![\\s\\S])"
       },
       "title": {
         "type": "string",

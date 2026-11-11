@@ -20,9 +20,9 @@ test('Issue 编辑及工作流重试各新增评论，保留历史结果并链�
     },
   });
   github.defaultBranch = async () => 'main';
-  github.snapshot = async () => ({ plugins: [], versions: {} });
+  github.snapshot = async () => ({ plugins: [] });
   const issue = { number: 1, state: 'open', body: '### npm 包名\n\nluckylillia-plugin-test\n' };
-  const resolve = async name => ({ plugin: { name }, manifest: { name, version: '1.0.0' }, version: '1.0.0' });
+  const resolve = async name => ({ plugin: { name, version: '1.0.0' }, manifest: { name, version: '1.0.0' }, version: '1.0.0' });
   for (const [run, attempt] of [['100', '1'], ['101', '1'], ['101', '2']]) {
     await registerIssue({
       github, issue, resolve,

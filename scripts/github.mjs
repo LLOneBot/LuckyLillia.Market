@@ -71,18 +71,17 @@ export class GitHub {
     const ref = await this.branch(branch);
     if (!ref) throw new Error(`找不到分支 ${branch}`);
     const sha = ref.object.sha;
-    const [commit, plugins, versions] = await Promise.all([
-      this.request('GET', `/git/commits/${sha}`), this.file('plugins.json', sha), this.file('versions.json', sha),
+    const [commit, plugins] = await Promise.all([
+      this.request('GET', `/git/commits/${sha}`), this.file('plugins.json', sha),
     ]);
-    validateCatalog(plugins, versions);
-    return { sha, tree: commit.tree.sha, plugins, versions };
+    validateCatalog(plugins);
+    return { sha, tree: commit.tree.sha, plugins };
   }
 
-  async commitCatalog(branch, snapshot, plugins, versions, message, parent = snapshot.sha) {
-    validateCatalog(plugins, versions);
+  async commitCatalog(branch, snapshot, plugins, message, parent = snapshot.sha) {
+    validateCatalog(plugins);
     const files = {
       'plugins.json': sortPlugins(plugins),
-      'versions.json': Object.fromEntries(Object.entries(versions).sort(([a], [b]) => a.localeCompare(b, 'en'))),
     };
     const tree = await this.request('POST', '/git/trees', {
       base_tree: snapshot.tree,

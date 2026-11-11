@@ -9,10 +9,9 @@
     "url": "git+https://github.com/LuckyLilliaDev/LuckyLillia.Market.git"
   },
   "engines": { "node": ">=24" },
-  "files": ["plugins.json", "versions.json", "schemas/", "README.md"],
+  "files": ["plugins.json", "schemas/", "README.md"],
   "exports": {
     "./plugins.json": "./plugins.json",
-    "./versions.json": "./versions.json",
     "./package.json": "./package.json"
   },
   "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" },

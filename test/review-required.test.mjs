@@ -11,7 +11,7 @@ const aiEnv = {
   MARKET_AI_API_KEY: 'test-only-key',
 };
 const plugin = {
-  name: 'luckylillia-plugin-review', title: '审查测试', description: '必须通过 AI 审查的插件',
+  name: 'luckylillia-plugin-review', version: '1.1.0', title: '审查测试', description: '必须通过 AI 审查的插件',
   author: { name: 'Test' }, repository: 'https://github.com/example/review',
 };
 const manifest = {
@@ -46,27 +46,26 @@ for (const legacyEnabled of [undefined, 'false']) {
         return new Response(null, { status: 503 });
       },
     });
-    const empty = { plugins: [], versions: {} };
+    const empty = { plugins: [] };
     const registration = await prepareRegistration(plugin.name, empty, { resolve, review });
     assert.equal(registration.accepted, false);
     assert.equal(registration.assessment.status, 'error');
     assert.equal(registration.plugins, undefined);
-    assert.equal(registration.versions, undefined);
-    assert.deepEqual(empty, { plugins: [], versions: {} });
+    assert.deepEqual(empty, { plugins: [] });
 
-    const proposed = { plugins: [plugin], versions: { [plugin.name]: manifest.version } };
+    const proposed = { plugins: [plugin] };
     const validation = await validateChanges(empty, proposed, { resolve, review });
     assert.equal(validation.approved, false);
     assert.equal(validation.reports.length, 1);
     assert.equal(validation.reports[0].assessment.status, 'error');
 
-    const current = { plugins: [plugin], versions: { [plugin.name]: '1.0.0' } };
+    const current = { plugins: [{ ...plugin, version: '1.0.0' }] };
     const scan = await scanCatalog(current, { resolve, review });
     assert.deepEqual(scan.updates, []);
     assert.equal(scan.reports.length, 1);
     assert.equal(scan.reports[0].assessment.approved, false);
     assert.equal(scan.reports[0].assessment.status, 'error');
-    assert.deepEqual(current, { plugins: [plugin], versions: { [plugin.name]: '1.0.0' } });
+    assert.deepEqual(current, { plugins: [{ ...plugin, version: '1.0.0' }] });
     assert.equal(downloads, 3);
   });
 }

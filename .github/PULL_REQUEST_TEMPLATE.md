@@ -25,6 +25,6 @@
 - [ ] `npm run validate`
 - [ ] 涉及目录变更时，已运行 `npm run validate:remote`，或说明未运行的原因
 
-涉及插件目录时，请确认元数据来自对应的 npm 已发布版本，`plugins.json` 与 `versions.json` 中的包名一致。不要手动推进未经检查的版本。
+涉及插件目录时，请确认 `plugins.json` 每个条目的元数据来自其 `version` 指定的 npm 已发布版本。不要手动推进未经检查的版本。
 
 修改了发布内容时，请附上 `npm pack --dry-run` 的验证结果。

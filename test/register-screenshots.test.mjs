@@ -3,10 +3,10 @@ import test from 'node:test';
 import { parseRegistration, parseRegistrationIcon, parseRegistrationScreenshots, prepareRegistration } from '../scripts/register-issue.mjs';
 
 const name = 'luckylillia-plugin-screenshots';
-const catalog = { plugins: [], versions: {} };
+const catalog = { plugins: [] };
 const issueBody = value => '### npm 包名\n\n' + name + '\n\n### icon\n\nassets/icon.png\n\n### screenshots\n\n' + value + '\n';
 const published = {
-  name, title: '截图示例', description: '登记截图测试',
+  name, version: '1.0.0', title: '截图示例', description: '登记截图测试',
   author: { name: 'Test' }, repository: 'https://github.com/example/screenshots',
   icon: 'assets/icon.png',
   screenshots: ['assets/preview.png', { src: './assets/设置 页面.webp', caption: '设置页面' }],
@@ -55,8 +55,8 @@ test('匹配路径后保留 npm 中的截图说明并生成目录数据', async 
   assert.equal(reviews, 1);
   assert.equal(result.accepted, true);
   assert.deepEqual(result.plugins, [published]);
-  assert.deepEqual(result.versions, { [name]: '1.0.0' });
-  assert.deepEqual(catalog, { plugins: [], versions: {} });
+  assert.equal(result.plugins[0].version, '1.0.0');
+  assert.deepEqual(catalog, { plugins: [] });
 });
 
 test('缺少、多填或顺序不同的截图在审查前拒绝，不改写目录', async () => {
@@ -69,7 +69,7 @@ test('缺少、多填或顺序不同的截图在审查前拒绝，不改写目�
       screenshots, resolve, review: async () => assert.fail('截图不匹配时不应调用审查'),
     }), /screenshots.*不一致/);
   }
-  assert.deepEqual(catalog, { plugins: [], versions: {} });
+  assert.deepEqual(catalog, { plugins: [] });
 });
 
 test('没有发布截图声明时不能通过 Issue 添加截图', async () => {

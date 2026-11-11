@@ -11,10 +11,10 @@ export async function scanCatalog(catalog, { resolve = resolvePlugin, review = r
     try {
       const resolved = await resolve(plugin.name);
       version = resolved.version;
-      if (version === catalog.versions[plugin.name]) continue;
+      if (version === plugin.version) continue;
       const assessment = await review(resolved.manifest);
-      reports.push({ name: plugin.name, previous: catalog.versions[plugin.name], version, assessment });
-      if (assessment.approved) updates.push({ ...resolved, previous: catalog.versions[plugin.name], previousPlugin: plugin });
+      reports.push({ name: plugin.name, previous: plugin.version, version, assessment });
+      if (assessment.approved) updates.push({ ...resolved, previous: plugin.version, previousPlugin: plugin });
     } catch (error) {
       reports.push({ name: plugin.name, version, assessment: { approved: false, status: 'error', summary: error.message, retryable: Boolean(error.retryable) } });
     }
@@ -25,19 +25,17 @@ export async function scanCatalog(catalog, { resolve = resolvePlugin, review = r
 // Rebase only unchanged entries. Never resurrect a removed plugin or overwrite a concurrent update.
 export function applyUpdates(catalog, updates) {
   const plugins = [...catalog.plugins];
-  const versions = { ...catalog.versions };
   let changed = false;
   for (const update of updates) {
     const index = plugins.findIndex(plugin => plugin.name === update.plugin.name);
-    if (index < 0 || versions[update.plugin.name] !== update.previous) continue;
+    if (index < 0 || plugins[index].version !== update.previous) continue;
     if (update.previousPlugin && !same(plugins[index], update.previousPlugin)) continue;
     // An explicit blank hides the artwork across automatic version updates.
     // Missing fields in older entries may gain the newly published artwork.
     plugins[index] = preserveImageBlanks(update.plugin, plugins[index]);
-    versions[update.plugin.name] = update.version;
     changed = true;
   }
-  return { plugins, versions, changed };
+  return { plugins, changed };
 }
 
 export async function scanVersions({ github = new GitHub(), resolve, review } = {}) {
@@ -56,7 +54,7 @@ export async function scanVersions({ github = new GitHub(), resolve, review } = 
     const next = applyUpdates(current, updates);
     if (!next.changed) return { changed: false, reports };
     try {
-      const sha = await github.commitCatalog(branch, current, next.plugins, next.versions, 'Update approved plugin versions');
+      const sha = await github.commitCatalog(branch, current, next.plugins, 'Update approved plugin versions');
       await output('changed', 'true');
       await output('sha', sha);
       return { changed: true, reports, sha };
