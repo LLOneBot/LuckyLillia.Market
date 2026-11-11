@@ -2,8 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { isImagePath, isImageSource, isPackageName, preserveImageBlanks, resolvePlugin } from './catalog.mjs';
 import { reviewPackage } from './review.mjs';
-import { registrationBody, runUrl } from './pr-description.mjs';
-import { GitHub, literal, reportText, same, sortPlugins, saveReport } from './github.mjs';
+import { registrationBody, reviewSummary, runUrl } from './pr-description.mjs';
+import { GitHub, literal, same, sortPlugins, saveReport } from './github.mjs';
 
 export function parseRegistration(body) {
   const sections = [...String(body ?? '').matchAll(/^### npm 包名\s*\r?\n([\s\S]*?)(?=^### |$(?![\s\S]))/gm)];
@@ -67,7 +67,7 @@ export async function registerIssue({ github = new GitHub(), issue, resolve, rev
       return;
     }
     if (!result.accepted) {
-      await comment(`登记暂缓，尚未写入目录。修复发布包或恢复审查服务后，请编辑此 Issue 或重新运行登记工作流。\n\n${reportText(result.assessment)}`);
+      await comment(`登记暂缓，尚未写入目录。修复发布包或恢复审查服务后，请编辑此 Issue 或重新运行登记工作流。\n\n${reviewSummary(result.assessment)}`);
       return;
     }
     const branch = `market/register-issue-${issue.number}`;
@@ -87,7 +87,7 @@ export async function registerIssue({ github = new GitHub(), issue, resolve, rev
       : await github.request('POST', '/pulls', { title: `登记插件：${name}`, head: branch, base, body, maintainer_can_modify: true });
     // GITHUB_TOKEN-generated PRs do not trigger pull_request. Explicitly dispatch trusted validation.
     await github.dispatchValidation(pull.number);
-    await comment(`字段检查已通过，已创建登记 PR：${pull.html_url}。首次版本为 <code>${literal(result.version)}</code>，合并后发布到 npm 目录包。\n\n${reportText(result.assessment)}`);
+    await comment(`字段检查已通过，已创建登记 PR：${pull.html_url}。首次版本为 <code>${literal(result.version)}</code>，合并后发布到 npm 目录包。\n\n${reviewSummary(result.assessment)}`);
     return { number: pull.number, sha };
   } catch (error) {
     await save(`registration-${issue.number}`, { error: error.message, retryable: Boolean(error.retryable) });
