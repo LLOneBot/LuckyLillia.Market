@@ -40,16 +40,13 @@ export function registrationBody(result, issueNumber, env = process.env) {
     '',
   ];
   const state = {
-    disabled: 'AI 审查未启用：仅完成 npm 元数据和 GitHub 仓库校验，未进行代码风险审查。',
     approved: 'AI 静态审查通过：本次未发现达到阻断级别的风险，仍需维护者审核。',
     blocked: '审查未通过，暂缓登记或更新。',
     error: '审查未完成，暂缓登记或更新。',
   }[assessment.status] ?? '没有有效的审查结论。';
   lines.push(`**${state}**`, '', text(assessment.summary, 1200), '', '### 具体风险点', '');
   const findings = [...(assessment.findings ?? [])].sort((a, b) => (priority[a.severity] ?? 4) - (priority[b.severity] ?? 4));
-  if (assessment.status === 'disabled') {
-    lines.push('未进行 AI 审查，无法给出代码风险结论。');
-  } else if (!findings.length) {
+  if (!findings.length) {
     lines.push(assessment.status === 'approved' ? '本次静态审查未报告具体风险项。' : '没有可用的风险条目，请查看上方原因和完整报告。');
   } else {
     lines.push('| 等级 | 文件 | 风险原因及依据 |', '| --- | --- | --- |');
@@ -65,9 +62,7 @@ export function registrationBody(result, issueNumber, env = process.env) {
     if (shown < findings.length) lines.push('', `共 ${findings.length} 条风险项，此处展示 ${shown} 条；其余见完整报告。`);
   }
   lines.push('', '### 检查范围', '');
-  if (assessment.status === 'disabled') {
-    lines.push('未下载发布包进行代码审查，源码、依赖和运行时行为均未检查。');
-  } else if (assessment.coverage) {
+  if (assessment.coverage) {
     const coverage = assessment.coverage;
     lines.push(
       `- 已向模型提交 ${coverage.inspectedFiles?.length ?? 0} 个文件；归档共 ${coverage.totalFiles ?? 0} 个文件，另有 ${coverage.omittedFiles?.length ?? 0} 个资源文件未提交。`,
@@ -80,7 +75,7 @@ export function registrationBody(result, issueNumber, env = process.env) {
   const url = runUrl(env);
   lines.push(
     '',
-    `${assessment.status === 'disabled' ? '' : '静态审查通过不代表运行安全。'}PR 的最终检查结果以当前提交的 \`market/catalog\` 状态及其报告为准。`,
+    '静态审查通过不代表运行安全。PR 的最终检查结果以当前提交的 `market/catalog` 状态及其报告为准。',
     '',
     url ? `完整登记报告：[本次检查记录](${url}) → artifact \`registration-review\` → \`registration-${issueNumber}.json\`。` : '完整登记报告见登记工作流的 `registration-review` artifact。',
     '',

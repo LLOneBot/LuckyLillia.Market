@@ -35,7 +35,7 @@ async function main() {
     state, context: 'market/catalog', description,
     target_url: `https://github.com/${github.repository}/actions/runs/${process.env.GITHUB_RUN_ID}`,
   });
-  await status('pending', '正在检查 npm 元数据、精确版本和配置的 AI 审查');
+  await status('pending', '正在检查 npm 元数据、精确版本并进行 AI 审查');
   try {
     const base = await github.snapshot(branch);
     // Only parse two JSON blobs at the immutable head SHA. Never checkout or run PR code.
@@ -44,7 +44,7 @@ async function main() {
     const result = await validateChanges(base, { plugins, versions });
     await saveReport(`pr-${number}`, { sha, ...result });
     if (!result.approved) throw new Error('一个或多个插件版本未通过审查，详情见工作流报告');
-    await status('success', '目录字段、版本及当前配置的审查均通过');
+    await status('success', '目录字段、版本及 AI 审查均通过');
   } catch (error) {
     await status('failure', '目录检查未通过，详情见工作流日志与报告');
     throw error;

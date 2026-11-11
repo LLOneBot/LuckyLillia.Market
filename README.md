@@ -14,6 +14,21 @@
 
 本仓库 Action 会自动一小时检查一次已注册插件是否有新版本，开发者无需在本 Repo 重新创建 Issue 注册。
 
+## 仓库配置
+
+插件登记、目录 PR 中新增或变更的插件以及自动版本更新都必须通过 AI 审查。缺少配置、审查失败或未通过时，登记或更新会暂缓。
+
+在仓库 Settings → Secrets and variables → Actions 中配置：
+
+| 类型 | 名称 | 值 |
+| --- | --- | --- |
+| Variable | `MARKET_AI_BASE_URL` | HTTPS 接口基础地址，可带自定义路径 |
+| Variable | `MARKET_AI_MODEL` | 服务支持的模型 ID |
+| Variable（可选） | `MARKET_AI_MAX_INPUT_BYTES` | 审查输入的字节数上限，默认 `524288`，最大 `8388608` |
+| Secret | `MARKET_AI_API_KEY` | AI 服务的 API Key |
+
+请求地址为基础地址去掉末尾斜杠后追加 `/chat/completions`，例如 `https://ai.example.com/api` 对应 `https://ai.example.com/api/chat/completions`。服务需支持 Chat Completions 和 JSON 输出模式。
+
 ## 插件开发
 
 见文档（待施工）

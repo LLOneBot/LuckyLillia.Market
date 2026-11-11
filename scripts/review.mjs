@@ -21,14 +21,10 @@ const blocked = (message) => { throw new ReviewProblem('blocked', message); };
 const failed = (message) => { throw new ReviewProblem('error', message); };
 
 function configFrom(env) {
-  if (env.MARKET_AI_ENABLED !== undefined && !['', 'false', 'true'].includes(env.MARKET_AI_ENABLED)) {
-    failed('MARKET_AI_ENABLED 只能是 true 或 false。');
-  }
-  if (env.MARKET_AI_ENABLED === 'false') return null;
   let base;
-  try { base = new URL(env.MARKET_AI_BASE_URL); } catch { failed('启用 AI 扫描后必须配置 HTTPS 的 MARKET_AI_BASE_URL。'); }
-  if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash || !base.pathname.replace(/\/$/, '').endsWith('/v1')) {
-    failed('MARKET_AI_BASE_URL 必须是无凭据、查询参数的 HTTPS 地址，并以 /v1 结尾。');
+  try { base = new URL(env.MARKET_AI_BASE_URL); } catch { failed('AI 审查必须配置 HTTPS 的 MARKET_AI_BASE_URL。'); }
+  if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) {
+    failed('MARKET_AI_BASE_URL 必须是无凭据、查询参数或片段标识的 HTTPS 地址。');
   }
   if (typeof env.MARKET_AI_MODEL !== 'string' || !env.MARKET_AI_MODEL.trim() || env.MARKET_AI_MODEL.length > 200) failed('请配置 MARKET_AI_MODEL。');
   if (typeof env.MARKET_AI_API_KEY !== 'string' || !env.MARKET_AI_API_KEY.trim()) failed('请配置 Secret MARKET_AI_API_KEY。');
@@ -295,7 +291,6 @@ export async function reviewPackage(manifest, options = {}) {
   const coverage = { inspectedFiles: [], omittedFiles: [], totalFiles: 0, compressedBytes: 0, archiveBytes: 0, inputBytes: 0, complete: false, dependenciesReviewed: false };
   try {
     const config = configFrom(options.env ?? process.env);
-    if (!config) return { approved: true, status: 'disabled', summary: 'AI 扫描未启用。', findings: [], coverage };
     const fetchImpl = options.fetchImpl ?? globalThis.fetch;
     if (typeof manifest?.name !== 'string' || typeof manifest.version !== 'string') failed('缺少固定版本的 npm 包元数据。');
     let url;

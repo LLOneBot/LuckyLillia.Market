@@ -34,7 +34,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           MARKET_PR_NUMBER: ${{ inputs.pr_number }}
-          MARKET_AI_ENABLED: ${{ vars.MARKET_AI_ENABLED }}
           MARKET_AI_BASE_URL: ${{ vars.MARKET_AI_BASE_URL }}
           MARKET_AI_MODEL: ${{ vars.MARKET_AI_MODEL }}
           MARKET_AI_MAX_INPUT_BYTES: ${{ vars.MARKET_AI_MAX_INPUT_BYTES }}
