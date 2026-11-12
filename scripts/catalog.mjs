@@ -6,6 +6,14 @@ const REGISTRY = 'https://registry.npmjs.org';
 const NAME_PATTERN = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
+/** Same values, labels and order as the Bot plugin page and SDK PluginCategory. */
+export const PLUGIN_CATEGORIES = Object.freeze({
+  protocol: '协议端', adapter: '适配器', chat: '消息互动',
+  tool: '工具', service: '依赖组件', other: '其他',
+});
+
+export const isCategory = value => typeof value === 'string' && Object.hasOwn(PLUGIN_CATEGORIES, value);
+
 export class MarketError extends Error {
   constructor(message, { code = 'INVALID_METADATA', retryable = false, cause } = {}) {
     super(message, { cause });
@@ -59,10 +67,10 @@ export function isImageSource(value) {
   return isImageUrl(value) || isImagePath(value);
 }
 
-/** Missing or explicitly empty images are allowed, including in old registration PRs. */
+/** Category is chosen in registration; other metadata comes from npm, with optional image opt-outs. */
 export function matchesPublishedPlugin(plugin, published) {
-  const { icon, screenshots, ...required } = plugin;
-  const { icon: publishedIcon, screenshots: publishedScreenshots, ...publishedRequired } = published;
+  const { category, icon, screenshots, ...required } = plugin;
+  const { category: publishedCategory, icon: publishedIcon, screenshots: publishedScreenshots, ...publishedRequired } = published;
   return isDeepStrictEqual(required, publishedRequired)
     && (!icon || icon === publishedIcon)
     && (!screenshots?.length || isDeepStrictEqual(screenshots, publishedScreenshots));
@@ -152,7 +160,8 @@ export function metadataToPlugin(metadata) {
   const description = localized(metadata.llbot.description) || localized(metadata.description);
   if (!string(title, 200)) fail('请在 package.json.llbot.title 填写插件名称并发布新版本。', 'MISSING_TITLE');
   if (!string(description, 2000)) fail('请在 package.json.description 或 llbot.description 填写插件简介并发布新版本。', 'MISSING_DESCRIPTION');
-  const plugin = { name: metadata.name, version: metadata.version, title, description, author: parseAuthor(metadata.author), repository: normalizeRepository(metadata.repository) };
+  const category = isCategory(metadata.llbot.category) ? metadata.llbot.category : 'other';
+  const plugin = { name: metadata.name, version: metadata.version, category, title, description, author: parseAuthor(metadata.author), repository: normalizeRepository(metadata.repository) };
   const icon = metadata.llbot.icon;
   const screenshots = Array.isArray(metadata.llbot.screenshots)
     ? metadata.llbot.screenshots.map(item => {
@@ -172,11 +181,12 @@ export function validateCatalog(plugins) {
   if (!Array.isArray(plugins)) fail('plugins.json 必须是插件数组。', 'INVALID_CATALOG');
   const names = new Set();
   for (const plugin of plugins) {
-    if (!object(plugin) || !keysOnly(plugin, ['name', 'version', 'title', 'description', 'author', 'repository', 'icon', 'screenshots'])) fail('插件条目包含无效字段。', 'INVALID_CATALOG');
+    if (!object(plugin) || !keysOnly(plugin, ['name', 'version', 'category', 'title', 'description', 'author', 'repository', 'icon', 'screenshots'])) fail('插件条目包含无效字段。', 'INVALID_CATALOG');
     if (!isPackageName(plugin.name)) fail('插件条目包含无效 npm 包名。', 'INVALID_PACKAGE_NAME');
     if (names.has(plugin.name)) fail(`插件重复登记：${plugin.name}。`, 'DUPLICATE_PACKAGE');
     names.add(plugin.name);
     if (!isVersion(plugin.version)) fail(`插件 ${plugin.name} 缺少精确版本号，或版本号无效。`, 'INVALID_VERSION');
+    if (Object.hasOwn(plugin, 'category') && !isCategory(plugin.category)) fail(`插件 ${plugin.name} 的 category 必须是 ${Object.keys(PLUGIN_CATEGORIES).join(' / ')} 之一。`, 'INVALID_CATEGORY');
     if (!string(plugin.title, 200) || plugin.title !== plugin.title.trim() || !string(plugin.description, 2000) || plugin.description !== plugin.description.trim()) fail(`插件 ${plugin.name} 的名称或简介无效。`, 'INVALID_CATALOG');
     if (!object(plugin.author) || !keysOnly(plugin.author, ['name', 'url']) || !string(plugin.author.name, 200) || plugin.author.name !== plugin.author.name.trim()) fail(`插件 ${plugin.name} 的作者信息无效。`, 'INVALID_CATALOG');
     if (Object.hasOwn(plugin.author, 'url') && !authorUrl(plugin.author.url)) fail(`插件 ${plugin.name} 的作者链接必须是 HTTP(S) 地址。`, 'INVALID_CATALOG');

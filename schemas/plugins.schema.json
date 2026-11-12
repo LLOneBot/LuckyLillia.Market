@@ -71,6 +71,11 @@
         "maxLength": 256,
         "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$(?![\\s\\S])"
       },
+      "category": {
+        "description": "Category selected during registration, using the Bot PluginCategory values. Older entries may omit it.",
+        "type": "string",
+        "enum": ["protocol", "adapter", "chat", "tool", "service", "other"]
+      },
       "title": {
         "type": "string",
         "minLength": 1,

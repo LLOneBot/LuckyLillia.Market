@@ -4,12 +4,25 @@
 
 1. 必须先将插件发布到 npm。
 
-2. 在本仓库创建「注册插件」Issue，按照 Issue Template 填写 npm 包名等信息。
+2. 在本仓库创建「注册插件」Issue，填写 npm 包名，并从下拉框选择插件分类。
 
 3. 检查通过后，机器人创建包含 `plugins.json` 变更的 PR，等待维护者合并。
 如果检查不通过，机器人会在 Issue 下面回复具体不通过问题。
 
 目录统一保存在 `plugins.json`。每个插件条目包含展示信息和 `version`；`version` 是通过审查的 npm 精确版本号，不能填写 `latest` 或版本范围。新版 Bot 只从条目中读取版本，不再支持旧双文件目录。
+
+注册分类沿用 Bot 的 `PluginCategory`，按以下顺序提供单选：
+
+| 目录中的 `category` | 分类 | 主要用途 |
+| --- | --- | --- |
+| `protocol` | 协议端 | 登录平台、接入账号和消息源 |
+| `adapter` | 适配器 | 对外提供 OneBot、Satori、Milky 等协议 |
+| `chat` | 消息互动 | 自动回复、复读、游戏 |
+| `tool` | 工具 | 通知、黑名单、独立工具 |
+| `service` | 依赖组件 | 为其他插件提供共享服务 |
+| `other` | 其他 | 其他用途或未指定分类 |
+
+目录的 `category` 以注册时的选择为准，自动更新版本时保留，也可通过目录 PR 调整。旧 Issue 没有分类栏时，从 npm 发布包的 `llbot.category` 读取，未填写或不认识的值归入 `other`；旧目录条目可以省略 `category`。Bot 安装后的插件列表仍使用包内的 `llbot.category`，建议作者与注册选择保持一致。
 
 
 ## 插件更新

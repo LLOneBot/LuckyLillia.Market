@@ -1,5 +1,5 @@
 name: 注册插件
-description: 提交 npm 包名、图标和截图声明，由自动化读取插件信息并生成登记 PR。
+description: 提交 npm 包名、插件分类、图标和截图声明，由自动化读取插件信息并生成登记 PR。
 title: "登记插件："
 body:
   - type: markdown
@@ -12,6 +12,20 @@ body:
       label: npm 包名
       description: 只填写完整包名，不附加版本号。
       placeholder: luckylillia-plugin-example 或 @example/luckylillia-plugin-example
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: 插件分类
+      description: 按插件主要用途选择，与 Bot 使用相同的分类。
+      options:
+        - 协议端 (protocol)
+        - 适配器 (adapter)
+        - 消息互动 (chat)
+        - 工具 (tool)
+        - 依赖组件 (service)
+        - 其他 (other)
     validations:
       required: true
   - type: input

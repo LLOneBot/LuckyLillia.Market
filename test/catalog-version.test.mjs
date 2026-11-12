@@ -11,7 +11,7 @@ import { validateChanges } from '../scripts/validate-pr.mjs';
 import { catalogHash, prepareRelease, releasePlan } from '../scripts/prepare-release.mjs';
 
 const plugin = {
-  name: '@author/example', version: '1.2.3', title: '示例插件', description: '目录中的简介',
+  name: '@author/example', version: '1.2.3', category: 'other', title: '示例插件', description: '目录中的简介',
   author: { name: '示例作者' }, repository: 'https://github.com/author/example',
 };
 const metadata = (version = plugin.version) => ({

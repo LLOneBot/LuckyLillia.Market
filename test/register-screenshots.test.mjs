@@ -6,7 +6,7 @@ const name = 'luckylillia-plugin-screenshots';
 const catalog = { plugins: [] };
 const issueBody = value => '### npm 包名\n\n' + name + '\n\n### icon\n\nassets/icon.png\n\n### screenshots\n\n' + value + '\n';
 const published = {
-  name, version: '1.0.0', title: '截图示例', description: '登记截图测试',
+  name, version: '1.0.0', category: 'other', title: '截图示例', description: '登记截图测试',
   author: { name: 'Test' }, repository: 'https://github.com/example/screenshots',
   icon: 'assets/icon.png',
   screenshots: ['assets/preview.png', { src: './assets/设置 页面.webp', caption: '设置页面' }],

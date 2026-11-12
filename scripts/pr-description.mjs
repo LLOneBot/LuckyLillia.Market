@@ -1,4 +1,5 @@
 import { literal } from './github.mjs';
+import { PLUGIN_CATEGORIES } from './catalog.mjs';
 
 // Escape package/model text before inserting it into Markdown or table cells.
 function text(value, limit = 2000) {
@@ -36,6 +37,7 @@ export function registrationBody(result, issueNumber, env = process.env) {
     '| 项目 | 内容 |',
     '| --- | --- |',
     `| npm 包及版本 | [${text(plugin.name, 214)}@${text(version, 256)}](${packageUrl}) |`,
+    `| 插件分类 | ${PLUGIN_CATEGORIES[plugin.category] ?? PLUGIN_CATEGORIES.other} |`,
     `| 作者 | ${text(plugin.author.name, 200)} |`,
     `| GitHub 仓库 | [查看源码](${plugin.repository}) |`,
     '',

@@ -32,7 +32,10 @@ export function applyUpdates(catalog, updates) {
     if (update.previousPlugin && !same(plugins[index], update.previousPlugin)) continue;
     // An explicit blank hides the artwork across automatic version updates.
     // Missing fields in older entries may gain the newly published artwork.
-    plugins[index] = preserveImageBlanks(update.plugin, plugins[index]);
+    const previous = plugins[index];
+    plugins[index] = preserveImageBlanks(update.plugin, previous);
+    // A release cannot replace the category chosen during registration or by a maintainer.
+    if (previous.category !== undefined) plugins[index].category = previous.category;
     changed = true;
   }
   return { plugins, changed };

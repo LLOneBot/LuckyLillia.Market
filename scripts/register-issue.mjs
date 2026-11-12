@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
-import { isImagePath, isImageSource, isPackageName, preserveImageBlanks, resolvePlugin } from './catalog.mjs';
+import { isCategory, isImagePath, isImageSource, isPackageName, PLUGIN_CATEGORIES, preserveImageBlanks, resolvePlugin } from './catalog.mjs';
 import { reviewPackage } from './review.mjs';
 import { registrationBody, reviewSummary, runUrl } from './pr-description.mjs';
 import { GitHub, literal, same, sortPlugins, saveReport } from './github.mjs';
@@ -11,6 +11,17 @@ export function parseRegistration(body) {
   const name = sections[0][1].trim().replace(/^`([^`]+)`$/, '$1');
   if (!isPackageName(name)) throw new Error('npm 包名无效；请填写完整包名，例如 @scope/luckylillia-plugin-example，不要填写 URL 或版本号。');
   return name;
+}
+
+export function parseRegistrationCategory(body) {
+  const sections = [...String(body ?? '').matchAll(/^### 插件分类\s*\r?\n([\s\S]*?)(?=^### |$(?![\s\S]))/gm)];
+  if (sections.length > 1) throw new Error('请在登记模板中只选择一个插件分类。');
+  // Older Issues predate the dropdown; use the published llbot.category for them.
+  if (!sections.length) return undefined;
+  const value = sections[0][1].trim().replace(/^`([^`]+)`$/, '$1');
+  const category = Object.entries(PLUGIN_CATEGORIES).find(([key, label]) => [key, label, `${label} (${key})`].includes(value))?.[0];
+  if (!category) throw new Error(`请选择有效的插件分类：${Object.values(PLUGIN_CATEGORIES).join('、')}。`);
+  return category;
 }
 
 export function parseRegistrationIcon(body) {
@@ -34,17 +45,19 @@ export function parseRegistrationScreenshots(body) {
   return screenshots;
 }
 
-export async function prepareRegistration(name, catalog, { icon, screenshots, resolve = resolvePlugin, review = reviewPackage } = {}) {
+export async function prepareRegistration(name, catalog, { category, icon, screenshots, resolve = resolvePlugin, review = reviewPackage } = {}) {
+  if (category !== undefined && !isCategory(category)) throw new Error('请选择有效的插件分类。');
   if (catalog.plugins.some(plugin => plugin.name === name)) return { duplicate: true };
   const resolved = await resolve(name);
+  const plugin = { ...resolved.plugin, category: category ?? (isCategory(resolved.plugin.category) ? resolved.plugin.category : 'other') };
   if (icon !== undefined && icon !== resolved.plugin.icon) throw new Error('Issue 中的 icon 与所检查 npm 版本的 package.json.llbot.icon 不一致，请填写该版本声明的相同图片路径或地址。');
   const publishedScreenshots = (resolved.plugin.screenshots ?? []).map(item => typeof item === 'string' ? item : item.src);
   if (screenshots !== undefined && !same(screenshots, publishedScreenshots)) throw new Error('Issue 中的 screenshots 与所检查 npm 版本的 package.json.llbot.screenshots 不一致，请按相同顺序每行填写一个图片路径（对象项填写 src），或留空自动读取。');
   const assessment = await review(resolved.manifest);
-  if (!assessment.approved) return { ...resolved, assessment, accepted: false };
+  if (!assessment.approved) return { ...resolved, plugin, assessment, accepted: false };
   return {
-    ...resolved, assessment, accepted: true,
-    plugins: sortPlugins([...catalog.plugins, resolved.plugin]),
+    ...resolved, plugin, assessment, accepted: true,
+    plugins: sortPlugins([...catalog.plugins, plugin]),
   };
 }
 
@@ -55,11 +68,12 @@ export async function registerIssue({ github = new GitHub(), issue, resolve, rev
   const comment = body => github.comment(issue.number, marker, url ? `${body}\n\n[本次检查记录](${url})` : body);
   try {
     const name = parseRegistration(issue.body);
+    const category = parseRegistrationCategory(issue.body);
     const icon = parseRegistrationIcon(issue.body);
     const screenshots = parseRegistrationScreenshots(issue.body);
     const base = await github.defaultBranch();
     const catalog = await github.snapshot(base);
-    const result = await prepareRegistration(name, catalog, { icon, screenshots, resolve, review });
+    const result = await prepareRegistration(name, catalog, { category, icon, screenshots, resolve, review });
     await save(`registration-${issue.number}`, { name, version: result.version, assessment: result.assessment, duplicate: result.duplicate });
     if (result.duplicate) {
       await comment(`包 <code>${literal(name)}</code> 已登记，版本由每小时检查任务维护。`);
@@ -72,7 +86,9 @@ export async function registerIssue({ github = new GitHub(), issue, resolve, rev
     const branch = `market/register-issue-${issue.number}`;
     const existing = await github.branch(branch);
     const branchCatalog = existing ? await github.snapshot(branch) : null;
-    result.plugin = preserveImageBlanks(result.plugin, branchCatalog?.plugins.find(plugin => plugin.name === name));
+    const previousPlugin = branchCatalog?.plugins.find(plugin => plugin.name === name);
+    result.plugin = preserveImageBlanks(result.plugin, previousPlugin);
+    if (category === undefined && previousPlugin?.category !== undefined) result.plugin.category = previousPlugin.category;
     result.plugins = result.plugins.map(plugin => plugin.name === name ? result.plugin : plugin);
     let sha = branchCatalog?.sha;
     if (!branchCatalog || !same(sortPlugins(branchCatalog.plugins), result.plugins)) {
