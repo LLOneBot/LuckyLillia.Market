@@ -156,7 +156,7 @@ export async function registerIssue({ github = new GitHub(), issue, checkVersion
       : await github.request('POST', '/pulls', { title: `登记插件：${name}`, head: branch, base, body, maintainer_can_modify: true });
     // GITHUB_TOKEN-generated PRs do not trigger pull_request. Explicitly dispatch trusted validation.
     await github.dispatchValidation(pull.number);
-    await comment(`字段检查已通过，已创建登记 PR：${pull.html_url}。首次版本为 <code>${literal(result.version)}</code>，合并后发布到 npm 目录包。\n\n${reviewSummary(result.assessment)}`);
+    await comment(`字段检查已通过，已创建登记 PR： <${pull.html_url}>\n\n首次版本为 <code>${literal(result.version)}</code>，合并后发布到 npm 目录包。\n\n${reviewSummary(result.assessment)}`);
     return { number: pull.number, sha };
   } catch (error) {
     await save(`registration-${issue.number}`, { name, version, previousVersion, error: error.message, retryable: Boolean(error.retryable) });
