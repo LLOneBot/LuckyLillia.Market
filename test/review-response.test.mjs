@@ -73,23 +73,30 @@ const manifest = {
   },
 };
 
-async function reviewResponse(responseEnvelope, { status = 200, body, contentType = 'application/json', transportError, reviewEnv = {} } = {}) {
+async function reviewResponse(responseEnvelope, { status = 200, body, contentType = 'application/json', transportError, reviewEnv = {}, responses } = {}) {
   const logs = [];
+  const requests = [], signals = [];
+  let downloads = 0;
   let request;
   const result = await reviewPackage(manifest, {
     env: { ...env, ...reviewEnv }, logger: entry => logs.push(entry),
     fetchImpl: async (url, options) => {
-      if (url === manifest.dist.tarball) return new Response(archive);
+      if (url === manifest.dist.tarball) { downloads++; return new Response(archive); }
       assert.equal(url, 'https://ai.example.com/api/chat/completions');
       request = JSON.parse(options.body);
+      requests.push(request);
+      signals.push(options.signal);
       if (transportError) throw transportError;
-      return new Response(body ?? JSON.stringify(responseEnvelope), { status, headers: { 'content-type': contentType, 'x-request-id': 'request-123' } });
+      const reply = responses ? responses[Math.min(requests.length - 1, responses.length - 1)] : responseEnvelope;
+      if (reply instanceof Error) throw reply;
+      if (reply instanceof Response) return reply;
+      return new Response(body ?? JSON.stringify(reply), { status, headers: { 'content-type': contentType, 'x-request-id': 'request-123' } });
     },
   });
-  return { result, logs, request };
+  return { result, logs, request, requests, signals, downloads };
 }
 
-test('截断时日志和报告保留响应状态、token 用量与长度，同时保护密钥和正文', async () => {
+test('连续截断最多重试一次，遵守配置上限并保留每次诊断，同时保护密钥和正文', async () => {
   const reasoning = 'REASONING_MUST_NOT_APPEAR_IN_LOGS';
   const content = 'CONTENT_MUST_NOT_APPEAR_IN_LOGS';
   const response = {
@@ -97,9 +104,15 @@ test('截断时日志和报告保留响应状态、token 用量与长度，同�
     id: `completion-${env.MARKET_AI_API_KEY}`,
     usage: { prompt_tokens: 100, completion_tokens: 4096, total_tokens: 4196, completion_tokens_details: { reasoning_tokens: 4080 } },
   };
-  const { result, logs, request } = await reviewResponse(response, { reviewEnv: { MARKET_AI_MAX_OUTPUT_TOKENS: '4096' } });
+  const { result, logs, request, requests, downloads } = await reviewResponse(response, { reviewEnv: { MARKET_AI_MAX_OUTPUT_TOKENS: '4096' } });
   assert.equal(result.approved, false);
+  assert.equal(result.coverage.complete, false);
   assert.match(result.summary, /finish_reason=length/);
+  assert.match(result.summary, /自动重试.*共 2 次尝试/);
+  assert.match(result.summary, /MARKET_AI_MAX_OUTPUT_TOKENS/);
+  assert.deepEqual(requests.map(request => request.max_tokens), [4096, 4096]);
+  assert.equal(downloads, 1);
+  assert.deepEqual(result.diagnostics.attempts.map(attempt => [attempt.attempt, attempt.maxOutputTokens, attempt.finishReason]), [[1, 4096, 'length'], [2, 4096, 'length']]);
   assert.equal(result.diagnostics.phase, 'ai_decision');
   assert.equal(result.diagnostics.config.maxOutputTokens, request.max_tokens);
   assert.equal(result.diagnostics.response.httpStatus, 200);
@@ -111,19 +124,125 @@ test('截断时日志和报告保留响应状态、token 用量与长度，同�
   assert.equal(result.diagnostics.response.usage.reasoning_tokens, 4080);
   assert.ok(result.diagnostics.response.elapsedMs >= 0);
   assert.ok(logs.some(entry => entry.event === 'ai_response_received' && entry.finishReason === 'length'));
+  assert.equal(logs.filter(entry => entry.event === 'ai_retry_scheduled').length, 1);
   assert.equal(logs.at(-1).status, 'error');
   const serialized = JSON.stringify({ result, logs });
   for (const secret of [env.MARKET_AI_API_KEY, sourceMarker, reasoning, content]) assert.equal(serialized.includes(secret), false, secret);
 });
 
 test('完整结果保留诊断信息并正常通过审查', async () => {
-  const { result, logs, request } = await reviewResponse(envelope({ tool_calls: [] }));
+  const { result, logs, request, requests } = await reviewResponse(envelope({ tool_calls: [] }));
   assert.equal(request.max_tokens, 32768);
+  assert.equal(requests.length, 1);
+  assert.equal(result.diagnostics.attempts.length, 1);
   assert.equal(result.approved, true);
   assert.equal(result.coverage.complete, true);
   assert.equal(result.diagnostics.phase, 'complete');
   assert.equal(result.diagnostics.response.toolCallCount, 0);
   assert.equal(logs.at(-1).status, 'approved');
+});
+
+test('推理耗尽默认额度时用完整固定版本源码重试，获得完整 JSON 后才通过', async () => {
+  const reasoning = 'PARTIAL_REASONING_MUST_NOT_BE_REPLAYED';
+  const first = {
+    ...envelope({ content: '', reasoning_content: reasoning }, 'length'),
+    id: 'completion-first', usage: { completion_tokens: 32768, reasoning_tokens: 32768 },
+  };
+  const second = { ...envelope(), id: 'completion-second' };
+  const { result, logs, requests, signals, downloads } = await reviewResponse(null, { responses: [first, second] });
+  assert.equal(result.approved, true);
+  assert.equal(result.coverage.complete, true);
+  assert.deepEqual(requests.map(request => request.max_tokens), [32768, 65536]);
+  assert.equal(requests[0].messages[1].content, requests[1].messages[1].content);
+  const input = JSON.parse(requests[1].messages[1].content);
+  assert.deepEqual(input.package, { name: manifest.name, version: manifest.version });
+  assert.deepEqual(input.sources.map(source => source.file), ['package.json', 'index.js']);
+  assert.ok(input.sources.some(source => source.content.includes(sourceMarker)));
+  assert.deepEqual(requests[1].messages.map(message => message.role), ['system', 'user']);
+  assert.equal(JSON.stringify(requests[1]).includes(reasoning), false);
+  assert.equal(downloads, 1);
+  assert.equal(signals[0], signals[1]);
+  assert.deepEqual(result.diagnostics.attempts.map(attempt => [attempt.completionId, attempt.finishReason]), [['completion-first', 'length'], ['completion-second', 'stop']]);
+  assert.equal(result.diagnostics.attempts[0].usage.reasoning_tokens, 32768);
+  assert.equal(result.diagnostics.response.completionId, 'completion-second');
+  assert.equal(logs.find(entry => entry.event === 'ai_retry_scheduled').nextMaxOutputTokens, 65536);
+  assert.equal(logs.at(-1).status, 'approved');
+  assert.equal(JSON.stringify({ result, logs }).includes(reasoning), false);
+});
+
+test('完整风险结论立即暂缓，截断重试后的中危风险也不会放行', async () => {
+  const blocked = envelope({ content: JSON.stringify({
+    decision: 'block', summary: '存在未经授权的 QQ 操作',
+    findings: [{ severity: 'medium', file: 'index.js', reason: '未核验调用者权限即自动加群' }],
+  }) });
+  for (const responses of [[blocked], [envelope({}, 'length'), blocked]]) {
+    const { result, requests } = await reviewResponse(null, { responses });
+    assert.equal(requests.length, responses.length);
+    assert.equal(result.approved, false);
+    assert.equal(result.status, 'blocked');
+    assert.equal(result.coverage.complete, true);
+    assert.equal(result.findings[0].severity, 'medium');
+  }
+});
+
+test('拒答、工具调用或多个候选不能通过截断重试改变结果', async () => {
+  for (const response of [
+    envelope({ refusal: '拒答' }, 'length'),
+    envelope({ tool_calls: [{ type: 'function', function: { name: 'run' } }] }, 'length'),
+    envelope({ tool_calls: {} }, 'length'),
+    envelope({ function_call: { name: 'run' } }, 'length'),
+    { choices: [...envelope({}, 'length').choices, ...envelope().choices] },
+    envelope({ content: '{"decision":"approve"' }),
+  ]) {
+    const { result, requests, logs } = await reviewResponse(null, { responses: [response, envelope()] });
+    assert.equal(requests.length, 1);
+    assert.equal(result.approved, false);
+    assert.equal(result.coverage.complete, false);
+    assert.ok(!logs.some(entry => entry.event === 'ai_retry_scheduled'));
+  }
+});
+
+test('重试遇到 HTTP 或网络错误时结束并保留初次截断记录', async () => {
+  const timeout = Object.assign(new Error('RETRY_TRANSPORT_SECRET'), { name: 'TimeoutError', cause: { code: 'ETIMEDOUT' } });
+  for (const reply of [new Response('RETRY_HTTP_SECRET', { status: 429 }), timeout]) {
+    const { result, logs, requests } = await reviewResponse(null, { responses: [envelope({}, 'length'), reply] });
+    assert.equal(result.approved, false);
+    assert.equal(result.status, 'error');
+    assert.equal(result.coverage.complete, false);
+    assert.equal(requests.length, 2);
+    assert.equal(result.diagnostics.attempts[0].finishReason, 'length');
+    assert.equal(result.diagnostics.attempts[1].attempt, 2);
+    if (reply === timeout) assert.deepEqual(result.diagnostics.response.error, { name: 'TimeoutError', code: 'ETIMEDOUT' });
+    else assert.equal(result.diagnostics.response.httpStatus, 429);
+    assert.doesNotMatch(JSON.stringify({ result, logs }), /RETRY_TRANSPORT_SECRET|RETRY_HTTP_SECRET/);
+  }
+});
+
+test('共用时限耗尽后不启动第二次请求，也不采用已截断的 approve 正文', async t => {
+  const controller = new AbortController();
+  const timeout = AbortSignal.timeout;
+  t.mock.method(AbortSignal, 'timeout', milliseconds => milliseconds === 30_000 ? timeout(milliseconds) : controller.signal);
+  const requests = [];
+  const result = await reviewPackage(manifest, {
+    env, logger: () => {},
+    fetchImpl: async (url, options) => {
+      if (url === manifest.dist.tarball) return new Response(archive);
+      requests.push(options);
+      return new Response(new ReadableStream({
+        start(stream) {
+          stream.enqueue(new TextEncoder().encode(JSON.stringify(envelope({}, 'length'))));
+          stream.close();
+          controller.abort(new DOMException('Deadline exceeded', 'TimeoutError'));
+        },
+      }));
+    },
+  });
+  assert.equal(requests.length, 1);
+  assert.equal(result.approved, false);
+  assert.equal(result.coverage.complete, false);
+  assert.match(result.summary, /总时限/);
+  assert.equal(result.diagnostics.attempts.length, 1);
+  assert.equal(result.diagnostics.response.finishReason, 'length');
 });
 
 test('输出额度可以独立配置，并拒绝无效值', async () => {
