@@ -12,20 +12,17 @@
   },
   {
     "name": "lucky-lillia-plugin-blipreview",
-    "version": "1.0.16",
+    "version": "1.0.17",
     "category": "chat",
     "title": "B站预览",
-    "description": "自动解析 BV、av、b23 短链及 B站分享卡片，发送视频封面和信息，可选 AI 总结。支持 B站扫码登录和自动续期。",
+    "description": "自动解析 BV、av、b23 短链及 B站分享卡片，发送视频封面和信息，可选 AI 总结。",
     "author": {
       "name": "linyuchen"
     },
     "repository": "https://github.com/linyuchen/lucky-lillia-plugin-blipreview",
     "icon": "assets/icon.png",
     "screenshots": [
-      {
-        "src": "assets/demo.png",
-        "caption": "视频预览与 AI 总结效果"
-      }
+      "assets/demo.png"
     ]
   }
 ]
