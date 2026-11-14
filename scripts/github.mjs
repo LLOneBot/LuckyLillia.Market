@@ -9,12 +9,6 @@ export const same = isDeepStrictEqual;
 export const sortPlugins = plugins => [...plugins].sort((a, b) => a.name.localeCompare(b.name, 'en'));
 // All text originating from packages or models is rendered literally, without mentions.
 export const literal = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/@/g, '&#64;');
-export function reportText(report) {
-  const text = pretty(report);
-  const excerpt = text.length > 8000 ? `${text.slice(0, 8000)}\n…完整记录见该次工作流的审查 artifact。` : text;
-  return `<pre>${literal(excerpt)}</pre>`;
-}
-
 export async function output(name, value) {
   if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
 }

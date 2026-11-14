@@ -18,6 +18,31 @@ export function runUrl(env) {
     ? `https://github.com/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}${attempt}` : null;
 }
 
+function versionReportLink(env) {
+  const url = runUrl(env);
+  return url
+    ? `完整 JSON 报告：[本次 Actions 检查记录](${url}) → artifact \`version-review\` → \`versions.json\`。`
+    : '完整 JSON 报告见版本扫描工作流的 `version-review` artifact 中的 `versions.json`。';
+}
+
+export function versionIssueBody(report, env = process.env) {
+  return [
+    `${report.version ? `版本 <code>${literal(report.version)}</code> ` : '本次'}更新暂缓，目录保留原有版本。`,
+    reviewSummary(report.assessment),
+    versionReportLink(env),
+    '修复并发布到 npm，或恢复审查服务后，可在此未关闭的 Issue 下新增评论立即重新检查。每小时任务也会自动重试；维护者可手动运行 `Scan plugin versions`。',
+  ].join('\n\n');
+}
+
+export function versionCommentBody(result, env = process.env) {
+  const report = result.reports[0];
+  if (report && !report.assessment.approved) return versionIssueBody(report, env);
+  const state = report
+    ? `版本 <code>${literal(report.version)}</code> 审查通过，${result.changed ? '已更新市场目录。' : '目录在审查期间发生变化，本次未写入更新。'}`
+    : result.reason === 'not_registered' ? '该插件已不在市场目录中，本次跳过更新检查。' : 'npm latest 已是目录中的版本，无需更新。';
+  return [state, report ? reviewSummary(report.assessment) : null, versionReportLink(env)].filter(Boolean).join('\n\n');
+}
+
 const severity = { critical: '严重', high: '高', medium: '中', low: '低' };
 const priority = { critical: 0, high: 1, medium: 2, low: 3 };
 
